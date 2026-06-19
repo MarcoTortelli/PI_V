@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Entity
 @Builder
@@ -29,7 +30,7 @@ public class Coupon {
     @NotNull
     @Future
     @Column(nullable = false)
-    private LocalDateTime expirationDate;
+    private OffsetDateTime expirationDate;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -50,7 +51,9 @@ public class Coupon {
     private Boolean active = true;
 
     public BigDecimal applyTo(BigDecimal total) {
-        BigDecimal multiplier = BigDecimal.ONE.subtract(discountPercentage.divide(BigDecimal.valueOf(100)));
+        BigDecimal multiplier = BigDecimal.ONE.subtract(
+                discountPercentage.divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP)
+        );
 
         return total.multiply(multiplier).setScale(2, RoundingMode.HALF_UP);
     }

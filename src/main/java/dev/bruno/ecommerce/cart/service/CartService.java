@@ -9,6 +9,8 @@ import dev.bruno.ecommerce.cart.entity.CartItem;
 import dev.bruno.ecommerce.cart.gateway.CouponGateway;
 import dev.bruno.ecommerce.coupon.entity.Coupon;
 import dev.bruno.ecommerce.exception.InvalidCouponException;
+import dev.bruno.ecommerce.payment.entity.Payment;
+import dev.bruno.ecommerce.payment.repository.PaymentRepository;
 import dev.bruno.ecommerce.product.entity.Product;
 import dev.bruno.ecommerce.exception.EntityNotFoundException;
 import dev.bruno.ecommerce.exception.InsufficientStockException;
@@ -20,8 +22,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -31,12 +37,21 @@ public class CartService {
     private final CartMapper cartMapper;
     private final CartItemMapper cartItemMapper;
     private final CouponGateway couponGateway;
+    private final PaymentRepository paymentRepository;
 
     @Transactional
     public CartResponse createCart(CreateCartDto cartDto, User user) {
+        Optional<Cart> existingCart =
+                cartRepository.findByUserIdAndPaidFalse(user.getId());
+
+        if (existingCart.isPresent()) {
+            throw new IllegalStateException(
+                    "User already has an active cart."
+            );
+        }
         List<CartItem> cartItems = new ArrayList<>();
 
-        for (CreateCartItemDto cartItemDto : cartDto.cartItems()) {
+        for (CreateCartItemDto cartItemDto : normalizeItems(cartDto.cartItems())) {
             Product product = productRepository.findById(cartItemDto.productId())
                     .orElseThrow(() -> new EntityNotFoundException(String.format("Entity with ID %d not found.", cartItemDto.productId())));
 
@@ -73,7 +88,7 @@ public class CartService {
 
         List<CartItem> cartItems = new ArrayList<>();
 
-        for (CreateCartItemDto cartItemDto : cartDto.cartItems()) {
+        for (CreateCartItemDto cartItemDto : normalizeItems(cartDto.cartItems())) {
 
             Product product = productRepository.findById(cartItemDto.productId())
                     .orElseThrow(() -> new EntityNotFoundException(String.format("Entity with ID %d not found.", cartItemDto.productId())));
@@ -94,7 +109,7 @@ public class CartService {
             cartItems.add(item);
         }
 
-        cart.setCartItems(cartItems);
+        cart.getCartItems().addAll(cartItems);
 
         cart.calculateTotal();
 
@@ -102,7 +117,7 @@ public class CartService {
 
         return cartMapper.toDto(
                 savedCart,
-                toResponse(cart)
+                toResponse(savedCart)
         );
     }
 
@@ -126,9 +141,19 @@ public class CartService {
         );
     }
 
+    @Transactional
     public void deleteCartById(Long cartId, Long userId) {
+
         Cart cart = cartRepository.findByIdAndUserId(cartId, userId)
                 .orElseThrow(() -> new EntityNotFoundException(String.format("Entity with ID %d not found.", cartId)));
+
+        List<Payment> payments = paymentRepository.findByCartId(cartId);
+
+        if (!payments.isEmpty()) {
+            cart.setPayment(null);
+            cartRepository.saveAndFlush(cart);
+            paymentRepository.deleteAll(payments);
+        }
 
         cartRepository.delete(cart);
     }
@@ -141,24 +166,45 @@ public class CartService {
 
         Coupon coupon = couponGateway.findByCode(code);
 
+        if (coupon == null) {
+            throw new InvalidCouponException(
+                    "Coupon not found."
+            );
+        }
+
         if (!coupon.getActive()) {
             throw new InvalidCouponException("Coupon is inactive.");
         }
 
-        if (coupon.getExpirationDate().isBefore(LocalDateTime.now())) {
+        if (coupon.getExpirationDate().isBefore(OffsetDateTime.now())) {
             throw new InvalidCouponException("Coupon is expired.");
         }
 
         cart.setCoupon(coupon);
         cart.calculateTotal();
 
-        return cartMapper.toDto(cartRepository.save(cart), toResponse(cart));
+        Cart savedCart = cartRepository.saveAndFlush(cart);
+
+        return cartMapper.toDto(savedCart, toResponse(savedCart));
     }
 
     private List<CartItemDto> toResponse(Cart cart) {
         return cart.getCartItems()
                 .stream()
                 .map(cartItemMapper::toDto)
+                .toList();
+    }
+
+    private List<CreateCartItemDto> normalizeItems(List<CreateCartItemDto> items) {
+        Map<Long, Integer> quantityByProductId = new LinkedHashMap<>();
+
+        for (CreateCartItemDto item : items) {
+            quantityByProductId.merge(item.productId(), item.quantity(), Integer::sum);
+        }
+
+        return quantityByProductId.entrySet()
+                .stream()
+                .map(entry -> new CreateCartItemDto(entry.getKey(), entry.getValue()))
                 .toList();
     }
 }

@@ -17,7 +17,7 @@ spring:
 
 client:
   card-validator-service:
-    url: https://mocki.io/v1/880d7325-43cd-49f3-bb62-151105480e63
+    url: https://mocki.io/v1/0c888051-e36e-4c62-bdde-188be2ebc4b9
 
 admin:
   password: 123456

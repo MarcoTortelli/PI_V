@@ -4,6 +4,7 @@ import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record CouponRequest(
         @NotBlank(message = "Coupon code cannot be blank.")
@@ -15,5 +16,5 @@ public record CouponRequest(
 
         @Future
         @NotNull
-        LocalDateTime expirationDate
+        OffsetDateTime expirationDate
 ) {}

@@ -4,10 +4,12 @@ import dev.bruno.ecommerce.payment.dto.CreatePaymentDto;
 import dev.bruno.ecommerce.cart.dto.CartResponse;
 import dev.bruno.ecommerce.payment.dto.PaymentDto;
 import dev.bruno.ecommerce.payment.service.PaymentService;
+import dev.bruno.ecommerce.user.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -37,8 +39,11 @@ public class PaymentController {
             description = "Processes the payment of an existing cart and marks the cart as paid."
     )
     @PostMapping("/charge")
-    public ResponseEntity<CartResponse> processPayment(@RequestBody @Valid CreatePaymentDto createPaymentDto) {
-        CartResponse cartResponse = paymentService.processPayment(createPaymentDto);
+    public ResponseEntity<CartResponse> processPayment(
+            @RequestBody @Valid CreatePaymentDto createPaymentDto,
+            @AuthenticationPrincipal User user
+    ) {
+        CartResponse cartResponse = paymentService.processPayment(createPaymentDto, user.getId());
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentContextPath()

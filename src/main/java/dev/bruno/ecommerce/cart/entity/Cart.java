@@ -11,6 +11,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -28,13 +29,13 @@ public class Cart {
 
     private BigDecimal total = BigDecimal.ZERO;
 
-    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL)
-    private List<CartItem> cartItems;
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CartItem> cartItems = new ArrayList<>();
 
     @Column
     private Boolean paid = false;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "payment_id")
     private Payment payment;
 
@@ -57,7 +58,9 @@ public class Cart {
     }
 
     public void calculateTotal() {
-        this.total = this.cartItems.stream()
+        List<CartItem> items = this.cartItems == null ? List.of() : this.cartItems;
+
+        this.total = items.stream()
                 .map(
                         cartItem -> cartItem.getPriceAtPurchase()
                                 .multiply(BigDecimal.valueOf(cartItem.getQuantity())))

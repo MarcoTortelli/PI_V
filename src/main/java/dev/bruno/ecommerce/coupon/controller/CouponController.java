@@ -6,10 +6,14 @@ import dev.bruno.ecommerce.coupon.service.CouponService;
 import dev.bruno.ecommerce.user.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 @RestController
 @RequestMapping("/coupon")
@@ -25,8 +29,28 @@ public class CouponController {
     @PostMapping
     public ResponseEntity<CouponResponse> create(
             @AuthenticationPrincipal User user,
-            CouponRequest request
+            @RequestBody @Valid CouponRequest request
     ) {
+        return ResponseEntity.ok(service.create(user, request));
+    }
+
+    @Operation(
+            summary = "Create coupon using query params",
+            description = "Creates a new coupon using query parameters."
+    )
+    @PostMapping(params = {"code", "discountPercentage", "expirationDate"})
+    public ResponseEntity<CouponResponse> createFromParams(
+            @AuthenticationPrincipal User user,
+            @RequestParam String code,
+            @RequestParam BigDecimal discountPercentage,
+            @RequestParam OffsetDateTime expirationDate
+    ) {
+        CouponRequest request = new CouponRequest(
+                code,
+                discountPercentage,
+                expirationDate
+        );
+
         return ResponseEntity.ok(service.create(user, request));
     }
 

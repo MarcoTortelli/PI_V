@@ -20,7 +20,11 @@ public class AdminSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        if (userRepository.findById(1L).isPresent()) {
+        User existingAdmin = userRepository.findByLogin("admin");
+
+        if (existingAdmin != null) {
+            existingAdmin.setRoleType(RoleType.ADMIN);
+            userRepository.save(existingAdmin);
             return;
         }
 

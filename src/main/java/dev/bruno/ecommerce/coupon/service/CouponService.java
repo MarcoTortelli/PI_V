@@ -4,6 +4,7 @@ import dev.bruno.ecommerce.coupon.dto.CouponRequest;
 import dev.bruno.ecommerce.coupon.dto.CouponResponse;
 import dev.bruno.ecommerce.coupon.entity.Coupon;
 import dev.bruno.ecommerce.coupon.repository.CouponRepository;
+import dev.bruno.ecommerce.exception.InvalidCouponException;
 import dev.bruno.ecommerce.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,9 @@ public class CouponService {
     private final CouponMapper mapper;
 
     public CouponResponse create(User user, CouponRequest request) {
-        if (repository.existsCouponByCode(request.code())) throw new RuntimeException("Coupon code already exists.");
+        if (repository.existsCouponByCode(request.code())) {
+            throw new InvalidCouponException("Coupon code already exists.");
+        }
 
         Coupon coupon = mapper.toCoupon(request);
         coupon.setCreatedAt(LocalDateTime.now());
@@ -40,6 +43,7 @@ public class CouponService {
 
     public Coupon findEntityByCode(String couponCode) {
         return repository.findCouponByCode(couponCode)
-                .orElseThrow(()-> new RuntimeException(String.format("Coupon with code %s not found", couponCode)));
+                .orElseThrow(() -> new InvalidCouponException(
+                        String.format("Coupon with code %s not found.", couponCode)));
     }
 }

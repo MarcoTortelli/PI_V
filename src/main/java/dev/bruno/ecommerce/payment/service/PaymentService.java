@@ -22,6 +22,7 @@ import dev.bruno.ecommerce.product.entity.Product;
 import dev.bruno.ecommerce.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -45,9 +46,9 @@ public class PaymentService {
         return paymentMapper.toDto(payment);
     }
 
-    public CartResponse processPayment(CreatePaymentDto createPaymentDto) {
-
-        Cart cart = cartRepository.findById(createPaymentDto.orderId()).orElseThrow(
+    @Transactional
+    public CartResponse processPayment(CreatePaymentDto createPaymentDto, Long userId) {
+        Cart cart = cartRepository.findByIdAndUserId(createPaymentDto.orderId(), userId).orElseThrow(
                 () -> new EntityNotFoundException(
                         String.format("Entity with ID %d not found.", createPaymentDto.orderId())
                 )
@@ -88,22 +89,26 @@ public class PaymentService {
             productRepository.save(product);
         }
 
+        cart.calculateTotal();
+
         Payment payment = paymentMapper.toPayment(createPaymentDto, cart);
 
         payment.setCart(cart);
+        payment.setAmountPaid(cart.getTotal());
 
         paymentRepository.save(payment);
 
         cart.setPaid(true);
+        cart.setPayment(payment);
 
-        cartRepository.save(cart);
+        Cart savedCart = cartRepository.saveAndFlush(cart);
 
-        List<CartItemDto> orderItemsDto = cart.getCartItems().stream()
+        List<CartItemDto> orderItemsDto = savedCart.getCartItems().stream()
                 .map(cartItemMapper::toDto)
                 .toList();
 
         return cartMapper.toDto(
-                cart,
+                savedCart,
                 orderItemsDto
         );
     }
