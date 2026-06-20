@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>dev.bruno</groupId>
-    <artifactId>ecommerce-api</artifactId>
+    <artifactId>backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>ecommerce-api</name>
     <description>ecommerce-api</description>
